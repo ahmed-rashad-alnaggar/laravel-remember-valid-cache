@@ -10,13 +10,6 @@ use RuntimeException;
 
 class RememberValidCacheTest extends TestCase
 {
-    protected function tearDown(): void
-    {
-        Carbon::setTestNow();
-
-        parent::tearDown();
-    }
-
     public function test_it_returns_the_cached_value_while_fresh(): void
     {
         $calls = 0;
