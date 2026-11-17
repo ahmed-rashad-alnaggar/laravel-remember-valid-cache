@@ -20,7 +20,7 @@ class RememberValidCacheServiceProvider extends ServiceProvider
         $attemptedKeyPrefix = 'illuminate:cache:remember-valid:attempted:';
         $lockKeyPrefix = 'illuminate:cache:remember-valid:lock:';
 
-        Repository::macro('rememberValid', function (UnitEnum|string $key, DateTimeInterface|DateInterval|Closure|int|null $ttl, Closure $callback, Closure $validator, ?array $lock = null) use ($attemptedKeyPrefix, $lockKeyPrefix) {
+        Repository::macro('rememberValid', function (UnitEnum|string $key, DateTimeInterface|DateInterval|Closure|int|null $ttl, Closure $callback, ?Closure $validator = null, ?array $lock = null) use ($attemptedKeyPrefix, $lockKeyPrefix) {
             $key = enum_value($key);
 
             $attemptedKey = $attemptedKeyPrefix.$key;
@@ -32,7 +32,7 @@ class RememberValidCacheServiceProvider extends ServiceProvider
                 $newValue = $callback();
 
                 throw_if(
-                    is_null($newValue) || ! $validator($newValue),
+                    is_null($newValue) || (! is_null($validator) && ! $validator($newValue)),
                     UnexpectedValueException::class,
                     "The callback returned an invalid value for cache key [{$key}], and no cached value is available."
                 );
@@ -70,7 +70,10 @@ class RememberValidCacheServiceProvider extends ServiceProvider
                         $newValue = $callback();
                         $ttl = value($ttl, $newValue);
 
-                        if (! is_null($newValue) && $validator($newValue)) {
+                        if (
+                            ! is_null($newValue)
+                            && (is_null($validator) || $validator($newValue))
+                        ) {
                             if ($this->forever($key, $newValue)) {
                                 $this->put($attemptedKey, Carbon::now()->getTimestamp(), $ttl);
                             }

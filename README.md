@@ -37,13 +37,13 @@ $data = Cache::rememberValid(
 
 The arguments are:
 
-| Argument    | Type                                                  | Description                                                                                                                                                                                                                               |
-| ----------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `key`       | `UnitEnum\|string`                                    | The cache key.                                                                                                                                                                                                                            |
-| `ttl`       | `DateTimeInterface\|DateInterval\|Closure\|int\|null` | The freshness period and retry cooldown. A TTL Closure receives the `callback` result, just like Laravel's other cache methods.                                                                                                           |
-| `callback`  | `Closure(): mixed`                                    | The callback that retrieves the value.                                                                                                                                                                                                    |
-| `validator` | `Closure(mixed): bool`                                | Receives the `callback` result. Returning `true` accepts the result for caching; returning `false` retains the previously cached value and starts the retry cooldown. If no cached value exists, an `UnexpectedValueException` is thrown. |
-| `lock`      | `array{seconds?: int, owner?: string}\|null`          | Optional lock configuration. `seconds` controls lock expiration, while `owner` specifies a custom lock-owner identifier.                                                                                                                  |
+| Argument    | Type                                                  | Description                                                                                                                     |
+| ----------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `key`       | `UnitEnum\|string`                                    | The cache key.                                                                                                                  |
+| `ttl`       | `DateTimeInterface\|DateInterval\|Closure\|int\|null` | The freshness period and retry cooldown. A TTL Closure receives the `callback` result, just like Laravel's other cache methods. |
+| `callback`  | `Closure(): mixed`                                    | The callback that retrieves the value.                                                                                          |
+| `validator` | `?Closure(mixed): bool`                               | Optional. Validates non-`null` callback results. When omitted, every non-`null` result is considered valid.                     |
+| `lock`      | `?array{seconds?: int, owner?: string}`               | Optional lock configuration. `seconds` controls lock expiration, while `owner` specifies a custom lock-owner identifier.        |
 
 You can also use a specific store:
 
@@ -82,10 +82,11 @@ Choose a finite lock duration long enough for the retrieval callback to complete
 - While the freshness marker exists, the cached value is returned without executing either callback.
 - When the marker expires, a refresh is attempted.
 - A non-`null` result accepted by the validator replaces the cached value and resets the freshness period.
+- The validator is optional. When omitted, every non-`null` callback result is considered valid.
 - A rejected result does not replace the cached value. When a stale value exists, the TTL also becomes the cooldown before another refresh attempt.
 - The last valid value is stored indefinitely by this method. It remains available until a valid replacement is stored or the application explicitly removes it.
-- `null` is treated as a missing or invalid value and is never cached as a valid replacement.
-- When there is no cached value, the callback runs without a refresh lock. Its result must be non-null and accepted by the validator; otherwise, an `UnexpectedValueException` is thrown. Invalid initial results are never cached. Subsequent calls attempt retrieval again, and concurrent cold-cache requests may execute the callback independently.
+- `null` is always treated as a missing or invalid value and is never cached as a valid replacement. The validator is not called for `null` results.
+- When there is no cached value, the callback runs without a refresh lock. Its result must be non-`null` and, when a validator is provided, accepted by that validator. Otherwise, an `UnexpectedValueException` is thrown. Invalid initial results are never cached. Subsequent calls attempt retrieval again, and concurrent cold-cache requests may execute the callback independently.
 - Refreshes of an existing stale value use a non-blocking atomic cache lock, following Laravel's `flexible()` approach. Only the lock owner refreshes; concurrent requests that cannot acquire the lock immediately receive the latest available cached value.
 - The refresh marker is checked again after acquiring the lock to avoid repeating a refresh completed by another request.
 - Exceptions from the retrieval callback or validator propagate and are not reported or swallowed by the package. An exception does not start the retry cooldown.
@@ -111,10 +112,6 @@ $data = Cache::rememberValid(
         }
     },
     validator: function ($value) {
-        if ($value === null) {
-            return false;
-        }
-
         $valid = is_array($value) && isset($value['data']);
 
         if (! $valid) {

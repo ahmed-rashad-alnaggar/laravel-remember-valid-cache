@@ -368,4 +368,67 @@ class RememberValidCacheTest extends TestCase
         $this->assertSame(['items' => [1, 2, 3]], $value);
         $this->assertSame($value, $seen);
     }
+
+    public function test_it_accepts_non_null_results_without_a_validator(): void
+    {
+        $calls = 0;
+
+        $callback = function () use (&$calls) {
+            $calls++;
+
+            return $calls === 1 ? 'initial' : 'refreshed';
+        };
+
+        $this->assertSame(
+            'initial',
+            Cache::rememberValid('external-data', 60, $callback),
+        );
+
+        Carbon::setTestNow(Carbon::now()->addSeconds(61));
+
+        $this->assertSame(
+            'refreshed',
+            Cache::rememberValid('external-data', 60, $callback),
+        );
+
+        $this->assertSame(
+            'refreshed',
+            Cache::rememberValid(
+                'external-data',
+                60,
+                fn () => $this->fail('A fresh value should not be refreshed.'),
+            ),
+        );
+
+        $this->assertSame(2, $calls);
+    }
+
+    public function test_it_retains_the_stale_value_when_the_callback_returns_null_without_a_validator(): void
+    {
+        Cache::rememberValid(
+            'external-data',
+            60,
+            fn () => 'valid',
+        );
+
+        Carbon::setTestNow(Carbon::now()->addSeconds(61));
+
+        $this->assertSame(
+            'valid',
+            Cache::rememberValid(
+                'external-data',
+                60,
+                fn () => null,
+            ),
+        );
+
+        $this->assertSame(
+            'valid',
+            Cache::rememberValid(
+                'external-data',
+                60,
+                fn () => $this->fail('The refresh cooldown should prevent another attempt.'),
+            ),
+        );
+    }
 }
