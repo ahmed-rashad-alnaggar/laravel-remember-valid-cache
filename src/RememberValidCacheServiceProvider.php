@@ -56,7 +56,7 @@ class RememberValidCacheServiceProvider extends ServiceProvider
                     // Wrap the callback result to distinguish it from Lock::get() returning
                     // false when the lock could not be acquired.
                     function () use ($key, $attemptedKey, $attempted, $value, $ttl, $callback, $validator): array {
-                        // Another request may have refreshed the value while this request
+                        // Another request may have completed a refresh attempt while this request
                         // was attempting to acquire the lock.
                         if ($attempted !== $this->get($attemptedKey)) {
                             return [$this->get($key) ?? $value];
@@ -81,7 +81,7 @@ class RememberValidCacheServiceProvider extends ServiceProvider
                 );
 
             return $result === false
-                ? ($this->get($key) ?? $value)  // The non-blocking lock could not be acquired, so return the latest cached value.
+                ? ($this->get($key) ?? $value) // The non-blocking lock could not be acquired, so return the latest cached value.
                 : $result[0];
         });
     }
