@@ -7,6 +7,7 @@ use Illuminate\Cache\Repository;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use RuntimeException;
+use UnexpectedValueException;
 
 class RememberValidCacheTest extends TestCase
 {
@@ -134,7 +135,7 @@ class RememberValidCacheTest extends TestCase
         );
     }
 
-    public function test_it_does_not_cache_an_invalid_initial_value(): void
+    public function test_it_throws_when_the_initial_value_is_invalid(): void
     {
         $calls = 0;
 
@@ -144,26 +145,47 @@ class RememberValidCacheTest extends TestCase
             return 'invalid';
         };
 
-        $this->assertSame(
-            'invalid',
+        try {
             Cache::rememberValid(
                 'external-data',
                 60,
                 $callback,
                 fn ($value) => false,
-            ),
-        );
+            );
+
+            $this->fail('An invalid initial value should throw an exception.');
+        } catch (UnexpectedValueException $exception) {
+            $this->assertStringContainsString(
+                'no cached value is available',
+                $exception->getMessage(),
+            );
+        }
 
         $this->assertNull(Cache::get('external-data'));
+        $this->assertSame(1, $calls);
+    }
 
-        Cache::rememberValid(
-            'external-data',
-            60,
-            $callback,
-            fn ($value) => false,
-        );
+    public function test_it_throws_when_the_initial_callback_returns_null(): void
+    {
+        $validatorCalled = false;
 
-        $this->assertSame(2, $calls);
+        try {
+            Cache::rememberValid(
+                'external-data',
+                60,
+                fn () => null,
+                function ($value) use (&$validatorCalled) {
+                    $validatorCalled = true;
+
+                    return true;
+                },
+            );
+
+            $this->fail('A null initial value should throw an exception.');
+        } catch (UnexpectedValueException) {
+            $this->assertNull(Cache::get('external-data'));
+            $this->assertFalse($validatorCalled);
+        }
     }
 
     public function test_it_returns_the_stale_value_when_another_request_holds_the_refresh_lock(): void

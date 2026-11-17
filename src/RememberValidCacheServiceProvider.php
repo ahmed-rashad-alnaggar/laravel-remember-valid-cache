@@ -8,6 +8,7 @@ use DateTimeInterface;
 use Illuminate\Cache\Repository;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\ServiceProvider;
+use UnexpectedValueException;
 use UnitEnum;
 
 use function Illuminate\Support\enum_value;
@@ -30,12 +31,16 @@ class RememberValidCacheServiceProvider extends ServiceProvider
             if (is_null($value)) {
                 $newValue = $callback();
 
-                if (! is_null($newValue) && $validator($newValue)) {
-                    $ttl = value($ttl, $newValue);
+                throw_if(
+                    is_null($newValue) || ! $validator($newValue),
+                    UnexpectedValueException::class,
+                    "The callback returned an invalid value for cache key [{$key}], and no cached value is available."
+                );
 
-                    if ($this->forever($key, $newValue)) {
-                        $this->put($attemptedKey, Carbon::now()->getTimestamp(), $ttl);
-                    }
+                $ttl = value($ttl, $newValue);
+
+                if ($this->forever($key, $newValue)) {
+                    $this->put($attemptedKey, Carbon::now()->getTimestamp(), $ttl);
                 }
 
                 return $newValue;
