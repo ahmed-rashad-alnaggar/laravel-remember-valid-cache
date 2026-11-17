@@ -1,0 +1,48 @@
+{
+    "name": "alnaggar/laravel-remember-valid-cache",
+    "description": "Conditionally refresh Laravel cache values while retaining the last valid value.",
+    "keywords": [
+        "laravel",
+        "cache",
+        "validation"
+    ],
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Ahmad Muhammad Rashad"
+        }
+    ],
+    "require": {
+        "php": ">=8.2",
+        "illuminate/cache": ">=12.0"
+    },
+    "require-dev": {
+        "orchestra/testbench": ">=10.0",
+        "phpunit/phpunit": ">=11.5",
+        "laravel/pint": ">=1.24"
+    },
+    "autoload": {
+        "psr-4": {
+            "Alnaggar\\Laravel\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Alnaggar\\Laravel\\RememberValidCache\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Alnaggar\\Laravel\\RememberValidCacheServiceProvider"
+            ]
+        }
+    },
+    "scripts": {
+        "test": "@php vendor/bin/phpunit",
+        "lint": "@php vendor/bin/pint --test"
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
